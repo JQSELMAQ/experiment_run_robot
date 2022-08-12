@@ -1,6 +1,5 @@
 import json
 import requests
-import wave
 import time
 import os
 import base64
@@ -17,7 +16,7 @@ experiment_id = "62befe7c27977f737525c4c3"
 
 # https://mcv-testbed.cs.columbia.edu/api/media/
 
-# json is for response objects, requests is for comm with internet, wave to interpret .wav files, wget to download
+# json is for response objects, requests is for comm with internet, wget to download
 # wav files, os to clear the screen and manipulate directories, base64 to encode the wav files and send them to the
 # Google server, shutil to make copies of files for debugging, regular expressions to exclude special characters.
 audio_list = []
