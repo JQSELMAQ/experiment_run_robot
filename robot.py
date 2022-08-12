@@ -7,6 +7,7 @@ import base64
 import shutil
 import re
 import wget
+import tempfile
 from evaluator import evaluate, nato_list, numberlist
 from Levenshtein import lev
 from pydub import AudioSegment
@@ -66,29 +67,25 @@ def get_json():
             listanswers.append(v_whitespace)
 
 
-def check_name():
-    global filepath
-    filepath = input()
-    if 'current' in filepath:
+def check_name(enter):
+    if 'current' in enter:
         return 0
     else:
         try:
-            os.listdir(filepath)
+            os.listdir(enter)
         except FileNotFoundError:
             print("\nInvalid pathway. Please try again.\n")
-            check_name()
-    return filepath
+            check_name(enter)
+    return enter
     # This function routes the download to the specified filepath *IF* it's a valid one.
 
 
 def move_dir(folder):
-    dir_choice = input("Would you like to create a separate directory for the experiment files? Y/N.\n")
-    if "Y" in dir_choice:
-        folder_name = input("Name your folder.\n\n")
-        os.system(f"mkdir {folder}/{folder_name}")
-        filepath += f"/{folder_name}"
+    folder_name = tempfile.mkdtemp()
+    folder += folder_name
     print(folder)
-    listed = os.listdir(folder)
+    listed = os.listdir(folder_name)
+    return folder_name
 
 
 print("Beginning file download...")
@@ -122,18 +119,18 @@ def download_func(directory):
                 if cut == listkeys[iterate]:
                     new_dictionary[cut] = iterate
                 wavetype = cut + ".wav"
-                os.rename(directory + "/" + cut, f"{filepath}/{wavetype}")
-                os.rename(directory + "/" + wavetype, f"{filepath}/{iterate}_{wavetype}")
+                os.rename(directory + "/" + cut, f"{directory}/{wavetype}")
+                os.rename(directory + "/" + wavetype, f"{directory}/{iterate}_{wavetype}")
                 trimmed = AudioSegment.from_file(f"{iterate}_{wavetype}")
                 trimmed_removed = trimmed[1500:]
-                trimmed_removed.export(out_f=f"{filepath}/cut_{iterate}_{wavetype}",
+                trimmed_removed.export(out_f=f"{directory}/cut_{iterate}_{wavetype}",
                                        format="wav")
             except IndexError:
                 print("File accessed out of bounds. Breaking loop...")
                 break
         except FileExistsError:
             print("Duplicate file found. Replacing...")
-            os.remove(filepath + "/" + listed[iterate])
+            os.remove(directory + "/" + listed[iterate])
             print(count, "duplicate files found and replaced")
 
         # convert to wav file
@@ -235,19 +232,19 @@ def google_sendoff(lists, cur_item):
 
 
 def mainfunction():
-    global itervar, filepath, compute_num
+    global itervar, compute_num
     get_json()
-    print("\nSpecify a filepath to send the audio files to. "
-          "\nOr, type 'current' the files will automatically be downloaded "
-          "to the directory this program is in. Which is:",
-          os.getcwd(), "\n")
-    check_name()
+    print("\nType 'current' to download the files to the directory you're running the program from.\n Which is:",
+          os.getcwd(), "\n or type literally anything else to create a temporary folder for the experiment files.")
+    filepath = input()
+    check_name(filepath)
     if 'current' in filepath:
         listed = os.listdir()
         tempfile = os.getcwd()
         filepath = str(tempfile)
+        download_func(filepath)
     else:
-        move_dir(filepath)
+        download_func(move_dir(filepath))
 
     iterate = 0
     download_func(filepath)
@@ -299,3 +296,15 @@ with open("results.json", 'w') as blank:
     json.dump(result_dict, blank)
     blank.close()
 
+
+
+
+
+
+
+
+
+
+    # verify this is the same dictionary structure as result_dict
+    
+    #Another update was made because I incorporated the tempfile library
