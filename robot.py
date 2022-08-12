@@ -13,6 +13,8 @@ from Levenshtein import lev
 from pydub import AudioSegment
 compute_num = 0
 url = "https://mcv-testbed.cs.columbia.edu/api/experiment_run/62befe7c27977f737525c4c3"
+experiment_id = "62befe7c27977f737525c4c3"
+
 # https://mcv-testbed.cs.columbia.edu/api/media/
 
 # json is for response objects, requests is for comm with internet, wave to interpret .wav files, wget to download
@@ -20,6 +22,7 @@ url = "https://mcv-testbed.cs.columbia.edu/api/experiment_run/62befe7c27977f7375
 # Google server, shutil to make copies of files for debugging, regular expressions to exclude special characters.
 audio_list = []
 encoded_files = {}
+trim_dict = {}
 M_test_dict = {}
 result_dict = {}
 evaluation_list = []
@@ -69,23 +72,15 @@ def get_json():
 
 def check_name(enter):
     if 'current' in enter:
-        return 0
+        return enter
     else:
-        try:
-            os.listdir(enter)
-        except FileNotFoundError:
-            print("\nInvalid pathway. Please try again.\n")
-            check_name(enter)
-    return enter
+        return
     # This function routes the download to the specified filepath *IF* it's a valid one.
 
 
-def move_dir(folder):
-    folder_name = tempfile.mkdtemp()
-    folder += folder_name
-    print(folder)
-    listed = os.listdir(folder_name)
-    return folder_name
+
+folder = tempfile.mkdtemp()
+listed = os.listdir(folder)
 
 
 print("Beginning file download...")
@@ -116,15 +111,22 @@ def download_func(directory):
                 pos = shorthand.find("impaired_")
                 cut = shorthand[pos:]
 
-                if cut == listkeys[iterate]:
-                    new_dictionary[cut] = iterate
+
                 wavetype = cut + ".wav"
+
+                if truncated:
+                    new_dictionary[f"cut_{iterate}_{wavetype}"] = iterate
+                else:
+                    new_dictionary[wavetype] = iterate
+
+
                 os.rename(directory + "/" + cut, f"{directory}/{wavetype}")
                 os.rename(directory + "/" + wavetype, f"{directory}/{iterate}_{wavetype}")
                 trimmed = AudioSegment.from_file(f"{iterate}_{wavetype}")
                 trimmed_removed = trimmed[1500:]
                 trimmed_removed.export(out_f=f"{directory}/cut_{iterate}_{wavetype}",
                                        format="wav")
+                trim_dict[wavetype] = f"cut_{iterate}_{wavetype}"
             except IndexError:
                 print("File accessed out of bounds. Breaking loop...")
                 break
@@ -230,6 +232,19 @@ def google_sendoff(lists, cur_item):
         print("There was a problem transcribing this audio file")
         return ""
 
+def api_submission(web_address, identification, file_index, response):
+    sendreq = requests.post(web_address, json=
+                            {"_id":  identification,
+                                "steps": [{
+                                    "file_idx": file_index,
+                                        "response": response
+                                            }]
+                            }
+                            )
+    print(sendreq)
+    json_obj = sendreq.json()
+    print(json_obj['steps'])
+
 
 def mainfunction():
     global itervar, compute_num
@@ -244,11 +259,10 @@ def mainfunction():
         filepath = str(tempfile)
         download_func(filepath)
     else:
-        download_func(move_dir(filepath))
+        download_func(folder)
 
     iterate = 0
-    download_func(filepath)
-    listed = os.listdir(filepath)
+    listed = os.listdir(folder)
     print("\nAll files successfully downloaded and prepared for evaluation.")
     iterate = 0
     for waves in listed:
@@ -273,7 +287,7 @@ def mainfunction():
                     compressed_str = eval_phase(g_interpret, items)
                 except IndexError:
                     print("Interpreted index value did not exist.")
-
+                api_submission(url, experiment_id, new_dictionary[items], compressed_str)
                 compute_num += 1
                 poskey = items.find("impaired_")
                 poskeyend = items.find(".wav")
@@ -296,15 +310,5 @@ with open("results.json", 'w') as blank:
     json.dump(result_dict, blank)
     blank.close()
 
-
-
-
-
-
-
-
-
-
-    # verify this is the same dictionary structure as result_dict
-    
-    #Another update was made because I incorporated the tempfile library
+# verify this is the same dictionary structure as result_dict
+#Latest change includes a function for submitting results to testbed API
