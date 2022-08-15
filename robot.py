@@ -281,7 +281,7 @@ def mainfunction():
 mainfunction()
 
 
-print("Printing result dictionary in 3.")
+'''print("Printing result dictionary in 3.")
 time.sleep(0.5)
 print("2")
 time.sleep(0.5)
@@ -289,6 +289,6 @@ print("1")
 time.sleep(0.5)
 with open("results.json", 'w') as blank:
     json.dump(result_dict, blank)
-    blank.close()
+    blank.close()'''
 
 # verify this is the same dictionary structure as result_dict
