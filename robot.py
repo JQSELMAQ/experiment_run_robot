@@ -31,7 +31,7 @@ iterate2 = 0
 # make sure server accepts request
 count = 0
 newlines = ""
-Answer_dict = {}
+answer_dict = {}
 new_dictionary = {}
 listkeys = []
 nato_tune = True
@@ -41,22 +41,25 @@ truncated = True
 
 def get_json():
     with open("correct_answers.json") as CA:
-        answer_text = CA.readlines()
-        for items in answer_text:
-            position = items.find("impaired_")
-            positionend = items.rfind(":")
-            matchable = items[position:positionend]
-            valuefix = items[positionend:len(items)]
+        answer_text = json.load(CA)
+ #       print(answer_text)
+        for filenames, answers in answer_text.items():
+            print(len(filenames))
+            position = filenames.find("impaired_")
+            positionend = filenames.rfind(" ")
+            #positionend += 1
+            matchable = filenames[position:len(filenames)]
+#            print(matchable, answers)
             # leaving comments for readability
-            x_whitespace = matchable.strip()
-            v_whitespace = valuefix.strip()
+            x_whitespace = matchable
+            v_whitespace = answers
             # another
             x_whitespace = re.sub('"', '', x_whitespace)
             v_whitespace = re.sub('"', '', v_whitespace)
             v_whitespace = re.sub(': ', '', v_whitespace)
             v_whitespace = re.sub(',', '', v_whitespace)
             # another
-            Answer_dict[x_whitespace] = v_whitespace
+            answer_dict[matchable] = v_whitespace
             # another
             listkeys.append(x_whitespace)
             # another
@@ -128,7 +131,7 @@ def download_func(directory):
         # rename file
         iterate += 1
         compute_num += 1
-        print(Answer_dict[cut])
+        print(answer_dict[cut])
 
 
 iterate = 0
@@ -277,8 +280,8 @@ def mainfunction():
                 compute_num += 1
                 poskey = items.find("impaired_")
                 poskeyend = items.find(".wav")
-                lev_dist = lev(compressed_str, Answer_dict[items[poskey:poskeyend]], True)
-                result_dict[items] = (g_interpret, compressed_str, Answer_dict[items[poskey:poskeyend]], lev_dist)
+                lev_dist = lev(compressed_str, answer_dict[items[poskey:poskeyend]], True)
+                result_dict[items] = (g_interpret, compressed_str, answer_dict[items[poskey:poskeyend]], lev_dist)
                 print(f"Levenshtein distance is: {lev_dist}")
                 iterate += 1
 
