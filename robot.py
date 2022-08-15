@@ -4,7 +4,7 @@ import wave
 import time
 import os
 import base64
-import shutil
+import click
 import re
 import wget
 import tempfile
@@ -25,10 +25,7 @@ encoded_files = {}
 trim_dict = {}
 result_dict = {}
 evaluation_list = []
-response = requests.get(url)
-# open testbed
-data = response.json()
-# json response object to find audio files
+
 iterate = 0
 iterate2 = 0
 # make sure server accepts request
@@ -88,6 +85,8 @@ def deletemode(directory):
 
 def download_func(directory):
     global iterate, compute_num
+    response = requests.get(url)
+    data = response.json()
     x = input("Download files in delete mode? (D)\n")
     if "D" in x:
         deletemode(directory)
@@ -129,7 +128,7 @@ def download_func(directory):
         # rename file
         iterate += 1
         compute_num += 1
-        print(answer_dict[cut])
+        print(Answer_dict[cut])
 
 
 iterate = 0
@@ -239,12 +238,16 @@ def mainfunction():
     filepath = input()
     check_name(filepath)
     if 'current' == filepath:
-        listed = os.listdir()
         tempfile = os.getcwd()
         filepath = str(tempfile)
         download_func(filepath)
+        listed = os.listdir()
+        print(listed)
     else:
         download_func(folder)
+        listed = os.listdir(folder)
+
+
 
     iterate = 0
     print("\nAll files successfully downloaded and prepared for evaluation.")
