@@ -42,9 +42,7 @@ truncated = True
 def get_json():
     with open("correct_answers.json") as CA:
         answer_text = json.load(CA)
- #       print(answer_text)
         for filenames, answers in answer_text.items():
-            print(len(filenames))
             position = filenames.find("impaired_")
             positionend = filenames.rfind(" ")
             #positionend += 1
@@ -198,23 +196,17 @@ def google_sendoff(lists, cur_item):
         }]
 
     request = requests.post(API_URL, json=config)
-
-        # encoded files of items
-
-
     data = request.json()
     try:
         plaintext = data['results'][0]['alternatives'][0]['transcript']
         print("---------------------------------")
         return plaintext
-
-    # print(items, str(iterate)+"_"+items)
     except KeyError:
         # If you chose to download the files to a current directory,
         # chances are there'll be a non .wav file in there somewhere.
         # When this happens, Google is unable to process the file because it's not audio.
         # Which throws a key error when attempting to interpret the response.
-        # Hence: the need for this try except.
+        # Hence: the need for this try except. (Also if the STT algorithm fails to pick up any words, the response field doesn't exist for that entry. So that'd be a program stopping exception.)
         print("There was a problem transcribing this audio file")
         return ""
 
