@@ -1,3 +1,4 @@
+import sys
 import json
 import requests
 import time
@@ -10,6 +11,13 @@ import tempfile
 from evaluator import evaluate, nato_list, numberlist
 from Levenshtein import lev
 from pydub import AudioSegment
+
+try:
+    google_stt_key = os.environ['GOOGLE_STT_KEY']
+except KeyError:
+    print("Please configure environment variable GOOGLE_STT_KEY")
+    sys.exit(1)
+
 compute_num = 0
 url = "https://mcv-testbed.cs.columbia.edu/api/experiment_run/62befe7c27977f737525c4c3"
 experiment_id = "62befe7c27977f737525c4c3"
@@ -171,7 +179,7 @@ def encode_func(directory, waves):
         # encode to base 64 then decode back to utf-8 string
 
 
-API_URL = "https://speech.googleapis.com/v1p1beta1/speech:recognize?key=AIzaSyB-5VKtWsx7yCGCOxHRfpRDyZGjU8f4N80"
+API_URL = f"https://speech.googleapis.com/v1p1beta1/speech:recognize?key={google_stt_key}"
 
 iterate = 0
 
