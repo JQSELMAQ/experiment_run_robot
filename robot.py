@@ -1,5 +1,6 @@
 import json
 import requests
+import wave
 import time
 import os
 import base64
@@ -11,18 +12,17 @@ from evaluator import evaluate, nato_list, numberlist
 from Levenshtein import lev
 from pydub import AudioSegment
 compute_num = 0
-url = "https://mcv-testbed.cs.columbia.edu/api/experiment_run/62befe7c27977f737525c4c3"
-experiment_id = "62befe7c27977f737525c4c3"
+exper_id = "62befe7c27977f737525c4c3"
+url = f"https://mcv-testbed.cs.columbia.edu/api/experiment_run/{exper_id}"
 
 # https://mcv-testbed.cs.columbia.edu/api/media/
 
-# json is for response objects, requests is for comm with internet, wget to download
+# json is for response objects, requests is for comm with internet, wave to interpret .wav files, wget to download
 # wav files, os to clear the screen and manipulate directories, base64 to encode the wav files and send them to the
 # Google server, shutil to make copies of files for debugging, regular expressions to exclude special characters.
 audio_list = []
 encoded_files = {}
 trim_dict = {}
-M_test_dict = {}
 result_dict = {}
 evaluation_list = []
 response = requests.get(url)
@@ -34,12 +34,9 @@ iterate2 = 0
 # make sure server accepts request
 count = 0
 newlines = ""
-Answer_list = []
 Answer_dict = {}
-guess = {}
 new_dictionary = {}
 listkeys = []
-listanswers = []
 nato_tune = True
 truncated = True
 # This is an empty string to convert list items to strings later on in the program
@@ -66,7 +63,6 @@ def get_json():
             # another
             listkeys.append(x_whitespace)
             # another
-            listanswers.append(v_whitespace)
 
 
 def check_name(enter):
@@ -75,7 +71,6 @@ def check_name(enter):
     else:
         return
     # This function routes the download to the specified filepath *IF* it's a valid one.
-
 
 
 folder = tempfile.mkdtemp()
@@ -105,22 +100,18 @@ def download_func(directory):
                 # shortcut for the filepath of the audio
 
                 wget.download(shorthand, out=directory)
-                print("Downloading:", shorthand)
+                print(" Downloading:", shorthand)
                 # download file off the web, map it to specified filepath
                 pos = shorthand.find("impaired_")
                 cut = shorthand[pos:]
-
-
                 wavetype = cut + ".wav"
 
                 if truncated:
                     new_dictionary[f"cut_{iterate}_{wavetype}"] = iterate
                 else:
                     new_dictionary[wavetype] = iterate
-
-
-                os.rename(directory + "/" + cut, f"{directory}/{wavetype}")
-                os.rename(directory + "/" + wavetype, f"{directory}/{iterate}_{wavetype}")
+                os.rename(f"{directory}/{cut}", f"{directory}/{wavetype}")
+                os.rename(f"{directory}/{wavetype}", f"{directory}/{iterate}_{wavetype}")
                 trimmed = AudioSegment.from_file(f"{iterate}_{wavetype}")
                 trimmed_removed = trimmed[1500:]
                 trimmed_removed.export(out_f=f"{directory}/cut_{iterate}_{wavetype}",
@@ -138,7 +129,7 @@ def download_func(directory):
         # rename file
         iterate += 1
         compute_num += 1
-        print(Answer_dict[cut])
+        print(answer_dict[cut])
 
 
 iterate = 0
@@ -171,14 +162,13 @@ def encode_func(directory, waves):
         # encode to base 64 then decode back to utf-8 string
 
 
-API_URL = "https://speech.googleapis.com/v1p1beta1/speech:recognize?key=AIzaSyB-5VKtWsx7yCGCOxHRfpRDyZGjU8f4N80"
-
+API_URL = f"https://speech.googleapis.com/v1p1beta1/speech:recognize?key={os.environ['GOOGLE_STT_KEY']}"
 iterate = 0
 
 itervar = 0
 
 
-def eval_phase(text, cur_item):
+def eval_phase(text):
     global itervar
     print(str(itervar) + ":", text, "\n")
     return evaluate(text)
@@ -189,32 +179,27 @@ def eval_phase(text, cur_item):
 def google_sendoff(lists, cur_item):
     global nato_tune
     # print(f"Sending {items} to Google")
-    if nato_tune is True:
-        request = requests.post(API_URL, json={"config": {
-                "encoding": "LINEAR16",
-                "languageCode": "en-US",
-                "speechContexts": [{
-                    "phrases": [nato_list],
-                    "boost": 100
-                }]
+
+    config = {"config": {
+            "encoding": "LINEAR16",
+            "languageCode": "en-US",
+
         },
 
             "audio": {
                 "content": lists[cur_item]},
-        })
+        }
+    if nato_tune is True:
+        config["config"]["speechContexts"] = [{
+            "phrases": [nato_list],
+            "boost": 100
+        }]
+
+    request = requests.post(API_URL, json=config)
+
         # encoded files of items
 
-    else:
-        request = requests.post(API_URL, json={"config": {
-            "encoding": "LINEAR16",
-            "languageCode": "en-US",
-        },
 
-            "audio": {
-                "content": lists[cur_item]},  # encoded files of items
-            # ship off fully formed request with audio file to Google for interpretation,
-            # evaluation, and correction. Thus conducting a complete experiment
-        })
     data = request.json()
     try:
         plaintext = data['results'][0]['alternatives'][0]['transcript']
@@ -230,6 +215,7 @@ def google_sendoff(lists, cur_item):
         # Hence: the need for this try except.
         print("There was a problem transcribing this audio file")
         return ""
+
 
 def api_submission(web_address, identification, file_index, response):
     sendreq = requests.post(web_address, json=
@@ -252,7 +238,7 @@ def mainfunction():
           os.getcwd(), "\n or type literally anything else to create a temporary folder for the experiment files.")
     filepath = input()
     check_name(filepath)
-    if 'current' in filepath:
+    if 'current' == filepath:
         listed = os.listdir()
         tempfile = os.getcwd()
         filepath = str(tempfile)
@@ -261,7 +247,6 @@ def mainfunction():
         download_func(folder)
 
     iterate = 0
-    listed = os.listdir(folder)
     print("\nAll files successfully downloaded and prepared for evaluation.")
     iterate = 0
     for waves in listed:
@@ -274,7 +259,6 @@ def mainfunction():
 
     print("Encoding function completed successfully")
     iterate = 0
-    iterable_ver_of_dict = list(encoded_files.keys())
     for items in listed:
         if items in encoded_files:
             try:
@@ -283,10 +267,10 @@ def mainfunction():
                 print("File out of bounds. Terminating loop...")
             if len(g_interpret) > 0:
                 try:
-                    compressed_str = eval_phase(g_interpret, items)
+                    compressed_str = eval_phase(g_interpret)
                 except IndexError:
                     print("Interpreted index value did not exist.")
-                api_submission(url, experiment_id, new_dictionary[items], compressed_str)
+                api_submission(url, exper_id, new_dictionary[items], compressed_str)
                 compute_num += 1
                 poskey = items.find("impaired_")
                 poskeyend = items.find(".wav")
@@ -310,4 +294,3 @@ with open("results.json", 'w') as blank:
     blank.close()
 
 # verify this is the same dictionary structure as result_dict
-#Latest change includes a function for submitting results to testbed API
