@@ -6,13 +6,17 @@ import base64
 import shutil
 import re
 import wget
+import click
 import tempfile
 from evaluator import evaluate, nato_list, numberlist
 from Levenshtein import lev
 from pydub import AudioSegment
+
+API_URL = "https://speech.googleapis.com/v1p1beta1/speech:recognize?key=AIzaSyB-5VKtWsx7yCGCOxHRfpRDyZGjU8f4N80"
+url = "https://mcv-testbed.cs.columbia.edu/api/experiment_run"
+
+
 compute_num = 0
-url = "https://mcv-testbed.cs.columbia.edu/api/experiment_run/62befe7c27977f737525c4c3"
-experiment_id = "62befe7c27977f737525c4c3"
 
 # https://mcv-testbed.cs.columbia.edu/api/media/
 
@@ -25,11 +29,7 @@ trim_dict = {}
 M_test_dict = {}
 result_dict = {}
 evaluation_list = []
-response = requests.get(url)
-# open testbed
-data = response.json()
 # json response object to find audio files
-iterate = 0
 iterate2 = 0
 # make sure server accepts request
 count = 0
@@ -42,7 +42,18 @@ listkeys = []
 listanswers = []
 nato_tune = True
 truncated = True
+iterate = 0
+itervar = 0
+
+
 # This is an empty string to convert list items to strings later on in the program
+
+
+def fetch_experiment(id):
+    # open testbed
+    response = requests.get(f'{url}/{id}')
+    response.raise_for_status()
+    return response.json()
 
 
 def get_json():
@@ -77,21 +88,13 @@ def check_name(enter):
     # This function routes the download to the specified filepath *IF* it's a valid one.
 
 
-
-folder = tempfile.mkdtemp()
-listed = os.listdir(folder)
-
-
-print("Beginning file download...")
-
-
 def deletemode(directory):
     for items in directory:
         if "impaired_" in items:
             os.remove(items)
 
 
-def download_func(directory):
+def download_func(data, directory):
     global iterate, compute_num
     x = input("Download files in delete mode? (D)\n")
     if "D" in x:
@@ -141,9 +144,6 @@ def download_func(directory):
         print(Answer_dict[cut])
 
 
-iterate = 0
-
-
 def encode_func(directory, waves):
     global truncated
     if truncated is True:
@@ -169,13 +169,6 @@ def encode_func(directory, waves):
         convert = base64.b64encode(decode).decode('utf-8')
         encoded_files[waves] = convert
         # encode to base 64 then decode back to utf-8 string
-
-
-API_URL = "https://speech.googleapis.com/v1p1beta1/speech:recognize?key=AIzaSyB-5VKtWsx7yCGCOxHRfpRDyZGjU8f4N80"
-
-iterate = 0
-
-itervar = 0
 
 
 def eval_phase(text, cur_item):
@@ -245,8 +238,18 @@ def api_submission(web_address, identification, file_index, response):
     print(json_obj['steps'])
 
 
-def mainfunction():
+@click.command()
+@click.argument('experiment-id')
+def mainfunction(experiment_id):
     global itervar, compute_num
+
+    data = fetch_experiment(experiment_id)
+
+    folder = tempfile.mkdtemp()
+    listed = os.listdir(folder)
+
+    print("Beginning file download...")
+
     get_json()
     print("\nType 'current' to download the files to the directory you're running the program from.\n Which is:",
           os.getcwd(), "\n or type literally anything else to create a temporary folder for the experiment files.")
@@ -254,11 +257,11 @@ def mainfunction():
     check_name(filepath)
     if 'current' in filepath:
         listed = os.listdir()
-        tempfile = os.getcwd()
-        filepath = str(tempfile)
-        download_func(filepath)
+        tmpfile = os.getcwd()
+        filepath = str(tmpfile)
+        download_func(data, filepath)
     else:
-        download_func(folder)
+        download_func(data, folder)
 
     iterate = 0
     listed = os.listdir(folder)
