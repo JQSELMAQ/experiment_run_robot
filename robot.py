@@ -4,7 +4,7 @@ import wave
 import time
 import os
 import base64
-import click
+import sys
 import re
 import wget
 import tempfile
@@ -12,7 +12,11 @@ from evaluator import evaluate, nato_list, numberlist
 from Levenshtein import lev
 from pydub import AudioSegment
 compute_num = 0
-exper_id = "62befe7c27977f737525c4c3"
+try:
+    exper_id = sys.argv[1]
+except IndexError:
+    print("Missing argument to run program.")
+
 url = f"https://mcv-testbed.cs.columbia.edu/api/experiment_run/{exper_id}"
 
 # https://mcv-testbed.cs.columbia.edu/api/media/
@@ -42,6 +46,7 @@ truncated = True
 def get_json():
     with open("correct_answers.json") as CA:
         answer_text = json.load(CA)
+ #       print(answer_text)
         for filenames, answers in answer_text.items():
             position = filenames.find("impaired_")
             positionend = filenames.rfind(" ")
@@ -129,7 +134,6 @@ def download_func(directory):
         # rename file
         iterate += 1
         compute_num += 1
-        print(answer_dict[cut])
 
 
 iterate = 0
@@ -196,17 +200,23 @@ def google_sendoff(lists, cur_item):
         }]
 
     request = requests.post(API_URL, json=config)
+
+        # encoded files of items
+
+
     data = request.json()
     try:
         plaintext = data['results'][0]['alternatives'][0]['transcript']
         print("---------------------------------")
         return plaintext
+
+    # print(items, str(iterate)+"_"+items)
     except KeyError:
         # If you chose to download the files to a current directory,
         # chances are there'll be a non .wav file in there somewhere.
         # When this happens, Google is unable to process the file because it's not audio.
         # Which throws a key error when attempting to interpret the response.
-        # Hence: the need for this try except. (Also if the STT algorithm fails to pick up any words, the response field doesn't exist for that entry. So that'd be a program stopping exception.)
+        # Hence: the need for this try except.
         print("There was a problem transcribing this audio file")
         return ""
 
@@ -235,11 +245,19 @@ def mainfunction():
     if 'current' == filepath:
         tempfile = os.getcwd()
         filepath = str(tempfile)
-        download_func(filepath)
+        try:
+            download_func(filepath)
+        except KeyError:
+            print("A file could not be accessed from the testbed database. Please check to make sure your experiment id is a valid one.")
+            exit(1)
         listed = os.listdir()
-        print(listed)
     else:
-        download_func(folder)
+        try:
+            download_func(folder)
+        except KeyError:
+            print("\nA file could not be accessed from the testbed database. Please check to make sure your experiment id is a valid one.\n")
+            exit(1)
+
         listed = os.listdir(folder)
 
 
@@ -289,6 +307,7 @@ print("1")
 time.sleep(0.5)
 with open("results.json", 'w') as blank:
     json.dump(result_dict, blank)
-    blank.close()'''
+    blank.close()
 
 # verify this is the same dictionary structure as result_dict
+'''
