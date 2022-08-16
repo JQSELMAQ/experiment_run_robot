@@ -49,8 +49,6 @@ def get_json():
  #       print(answer_text)
         for filenames, answers in answer_text.items():
             position = filenames.find("impaired_")
-            positionend = filenames.rfind(" ")
-            #positionend += 1
             matchable = filenames[position:len(filenames)]
 #            print(matchable, answers)
             # leaving comments for readability
@@ -78,8 +76,7 @@ def check_name(enter):
 
 folder = tempfile.mkdtemp()
 listed = os.listdir(folder)
-
-
+print(folder)
 print("Beginning file download...")
 
 
@@ -91,7 +88,8 @@ def deletemode(directory):
 
 def download_func(directory):
     global iterate, compute_num
-    response = requests.get(url)
+    response = requests.post(url)
+    print(response)
     data = response.json()
     x = input("Download files in delete mode? (D)\n")
     if "D" in x:
@@ -117,7 +115,8 @@ def download_func(directory):
                     new_dictionary[wavetype] = iterate
                 os.rename(f"{directory}/{cut}", f"{directory}/{wavetype}")
                 os.rename(f"{directory}/{wavetype}", f"{directory}/{iterate}_{wavetype}")
-                trimmed = AudioSegment.from_file(f"{iterate}_{wavetype}")
+                print(f"Renamed {cut} to {iterate}_{wavetype}")
+                trimmed = AudioSegment.from_file(f"{directory}/{iterate}_{wavetype}")
                 trimmed_removed = trimmed[1500:]
                 trimmed_removed.export(out_f=f"{directory}/cut_{iterate}_{wavetype}",
                                        format="wav")
@@ -143,7 +142,12 @@ def encode_func(directory, waves):
     global truncated
     if truncated is True:
         if "cut_" in waves:
-            beginencode = open(waves, 'rb')
+            try:
+                beginencode = open(f"{folder}/{waves}", 'rb')
+            except FileNotFoundError:
+                beginencode = open(waves, 'rb')
+
+
             # open recording, parameter = read bytes
 
             decode = beginencode.read()
@@ -155,15 +159,7 @@ def encode_func(directory, waves):
                 print("Attempted to access file out of bounds.")
                 return 0
 
-    else:
-        beginencode = open(waves, 'rb')
-        # open recording, parameter = read bytes
 
-        decode = beginencode.read()
-        # read recording
-        convert = base64.b64encode(decode).decode('utf-8')
-        encoded_files[waves] = convert
-        # encode to base 64 then decode back to utf-8 string
 
 
 API_URL = f"https://speech.googleapis.com/v1p1beta1/speech:recognize?key={os.environ['GOOGLE_STT_KEY']}"
@@ -172,9 +168,9 @@ iterate = 0
 itervar = 0
 
 
-def eval_phase(text):
+def eval_phase(text, cur_file):
     global itervar
-    print(str(itervar) + ":", text, "\n")
+    print(f"File index: {new_dictionary[cur_file]}, Response: {text}\n")
     return evaluate(text)
 
 # shutil.copyfile(items, str(iterate) + "_" + items)
@@ -200,9 +196,6 @@ def google_sendoff(lists, cur_item):
         }]
 
     request = requests.post(API_URL, json=config)
-
-        # encoded files of items
-
 
     data = request.json()
     try:
@@ -230,7 +223,6 @@ def api_submission(web_address, identification, file_index, response):
                                             }]
                             }
                             )
-    print(sendreq)
     json_obj = sendreq.json()
     print(json_obj['steps'])
 
@@ -248,14 +240,16 @@ def mainfunction():
         try:
             download_func(filepath)
         except KeyError:
-            print("A file could not be accessed from the testbed database. Please check to make sure your experiment id is a valid one.")
+            print("A file could not be accessed from the testbed database. "
+                  "Please check to make sure your experiment id is a valid one.")
             exit(1)
         listed = os.listdir()
     else:
         try:
             download_func(folder)
         except KeyError:
-            print("\nA file could not be accessed from the testbed database. Please check to make sure your experiment id is a valid one.\n")
+            print("\nA file could not be accessed from the testbed database. "
+                  "Please check to make sure your experiment id is a valid one.\n")
             exit(1)
 
         listed = os.listdir(folder)
@@ -283,23 +277,25 @@ def mainfunction():
                 print("File out of bounds. Terminating loop...")
             if len(g_interpret) > 0:
                 try:
-                    compressed_str = eval_phase(g_interpret)
+                    compressed_str = eval_phase(g_interpret, items)
                 except IndexError:
                     print("Interpreted index value did not exist.")
                 api_submission(url, exper_id, new_dictionary[items], compressed_str)
                 compute_num += 1
                 poskey = items.find("impaired_")
                 poskeyend = items.find(".wav")
-                lev_dist = lev(compressed_str, answer_dict[items[poskey:poskeyend]], True)
-                result_dict[items] = (g_interpret, compressed_str, answer_dict[items[poskey:poskeyend]], lev_dist)
-                print(f"Levenshtein distance is: {lev_dist}")
+                #lev_dist = lev(compressed_str, answer_dict[items[poskey:poskeyend]], True)
+                #result_dict[items] = (g_interpret, compressed_str, answer_dict[items[poskey:poskeyend]], lev_dist)
+                #print(f"Levenshtein distance is: {lev_dist}")
                 iterate += 1
 
 
 mainfunction()
 
 
-'''print("Printing result dictionary in 3.")
+os.system(f"rmdir {folder}")
+
+print("Printing result dictionary in 3.")
 time.sleep(0.5)
 print("2")
 time.sleep(0.5)
@@ -310,4 +306,3 @@ with open("results.json", 'w') as blank:
     blank.close()
 
 # verify this is the same dictionary structure as result_dict
-'''
