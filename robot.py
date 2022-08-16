@@ -16,9 +16,8 @@ try:
     exper_id = sys.argv[1]
 except IndexError:
     print("Missing argument to run program.")
-
-url = f"https://mcv-testbed.cs.columbia.edu/api/experiment_run/{exper_id}"
-
+alturl = f"https://mcv-testbed.cs.columbia.edu/api/experiment_run/{exper_id}"
+url = "https://mcv-testbed.cs.columbia.edu/api"
 # https://mcv-testbed.cs.columbia.edu/api/media/
 
 # json is for response objects, requests is for comm with internet, wave to interpret .wav files, wget to download
@@ -37,12 +36,13 @@ count = 0
 newlines = ""
 answer_dict = {}
 new_dictionary = {}
+answer_url_dict = {}
 listkeys = []
 nato_tune = True
 truncated = True
 # This is an empty string to convert list items to strings later on in the program
 
-
+'''
 def get_json():
     with open("correct_answers.json") as CA:
         answer_text = json.load(CA)
@@ -64,7 +64,7 @@ def get_json():
             # another
             listkeys.append(x_whitespace)
             # another
-
+'''
 
 def check_name(enter):
     if 'current' in enter:
@@ -81,58 +81,82 @@ print("Beginning file download...")
 
 
 def deletemode(directory):
-    for items in directory:
+    listed = os.listdir(directory)
+    for items in listed:
         if "impaired_" in items:
-            os.remove(items)
+            os.system(f'rm {items}')
+
+
+
+
+def fetch_steps(id):
+    global url
+    response = requests.get(f'{url}/experiment_run/{id}')
+    response.raise_for_status()
+    experiment_run = response.json()
+    if 'experiment' in experiment_run:
+        response = requests.get(f'{url}/experiment/{experiment_run["experiment"]}')
+        response.raise_for_status()
+        experiment = response.json()
+    else:
+        raise Exception('Experiment could not be found')
+
+    if 'audio' in experiment_run:
+        for i, url in enumerate(experiment_run['audio']):
+            yield (url, experiment['steps'][i]['correct_answer'])
+    else:
+        for step in experiment['steps']:
+            yield (step['audio'], step.get('correct_answer', None))
+print("Function called.")
+
+
 
 
 def download_func(directory):
     global iterate, compute_num
-    response = requests.post(url)
-    print(response)
-    data = response.json()
     x = input("Download files in delete mode? (D)\n")
     if "D" in x:
         deletemode(directory)
         listed = os.listdir(directory)
-    for items in data["audio"]:
-        try:
-            try:
-                shorthand = data["audio"][compute_num]
+    try:
 
-                # shortcut for the filepath of the audio
+        for url, correct_answer in fetch_steps(exper_id):
+            print(f"The correct answer for {url} is {correct_answer}")
+            position = url.find("impaired_")
+            matchable = url[position:len(url)]
+            answer_dict[matchable] = correct_answer
+            answer_url_dict[matchable] = url
+            shorthand = answer_url_dict[matchable]
 
-                wget.download(shorthand, out=directory)
-                print(" Downloading:", shorthand)
-                # download file off the web, map it to specified filepath
-                pos = shorthand.find("impaired_")
-                cut = shorthand[pos:]
-                wavetype = cut + ".wav"
+            wget.download(shorthand, out=directory)
+            print(" Downloading:", shorthand)
+            # download file off the web, map it to specified filepath
+            pos = shorthand.find("impaired_")
+            cut = shorthand[pos:]
+            wavetype = cut + ".wav"
 
-                if truncated:
-                    new_dictionary[f"cut_{iterate}_{wavetype}"] = iterate
-                else:
-                    new_dictionary[wavetype] = iterate
-                os.rename(f"{directory}/{cut}", f"{directory}/{wavetype}")
-                os.rename(f"{directory}/{wavetype}", f"{directory}/{iterate}_{wavetype}")
-                #print(f"Renamed {cut} to {iterate}_{wavetype}")
-                trimmed = AudioSegment.from_file(f"{directory}/{iterate}_{wavetype}")
-                trimmed_removed = trimmed[1500:]
-                trimmed_removed.export(out_f=f"{directory}/cut_{iterate}_{wavetype}",
+            if truncated:
+                new_dictionary[f"cut_{iterate}_{wavetype}"] = iterate
+            else:
+                new_dictionary[wavetype] = iterate
+            os.rename(f"{directory}/{cut}", f"{directory}/{wavetype}")
+            os.rename(f"{directory}/{wavetype}", f"{directory}/{iterate}_{wavetype}")
+            print(f"Renamed {cut} to {iterate}_{wavetype}")
+            trimmed = AudioSegment.from_file(f"{directory}/{iterate}_{wavetype}")
+            trimmed_removed = trimmed[1500:]
+            trimmed_removed.export(out_f=f"{directory}/cut_{iterate}_{wavetype}",
                                        format="wav")
-                trim_dict[wavetype] = f"cut_{iterate}_{wavetype}"
-            except IndexError:
-                print("File accessed out of bounds. Breaking loop...")
-                break
-        except FileExistsError:
-            print("Duplicate file found. Replacing...")
-            os.remove(directory + "/" + listed[iterate])
-            print(count, "duplicate files found and replaced")
+            trim_dict[wavetype] = f"cut_{iterate}_{wavetype}"
+            iterate += 1
+            compute_num += 1
+    except FileExistsError:
+        print("Duplicate file found. Replacing...")
+        os.remove(directory + "/" + listed[iterate])
+        print(count, "duplicate files found and replaced")
 
         # convert to wav file
         # rename file
-        iterate += 1
-        compute_num += 1
+
 
 
 iterate = 0
@@ -228,8 +252,8 @@ def api_submission(web_address, identification, file_index, response):
 
 
 def mainfunction():
-    global itervar, compute_num
-    get_json()
+    global itervar, compute_num, url, alturl
+
     print("\nType 'current' to download the files to the directory you're running the program from.\n Which is:",
           os.getcwd(), "\n or type literally anything else to create a temporary folder for the experiment files.")
     filepath = input()
@@ -280,13 +304,13 @@ def mainfunction():
                     compressed_str = eval_phase(g_interpret, items)
                 except IndexError:
                     print("Interpreted index value did not exist.")
-                api_submission(url, exper_id, new_dictionary[items], compressed_str)
+                api_submission(alturl, exper_id, new_dictionary[items], compressed_str)
                 compute_num += 1
                 poskey = items.find("impaired_")
                 poskeyend = items.find(".wav")
-                #lev_dist = lev(compressed_str, answer_dict[items[poskey:poskeyend]], True)
-                #result_dict[items] = (g_interpret, compressed_str, answer_dict[items[poskey:poskeyend]], lev_dist)
-                #print(f"Levenshtein distance is: {lev_dist}")
+                lev_dist = lev(compressed_str, answer_dict[items[poskey:poskeyend]], True)
+                result_dict[items] = (g_interpret, compressed_str, answer_dict[items[poskey:poskeyend]], lev_dist)
+                print(f"Levenshtein distance is: {lev_dist}")
                 iterate += 1
 
 
