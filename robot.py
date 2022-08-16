@@ -115,7 +115,7 @@ def download_func(directory):
                     new_dictionary[wavetype] = iterate
                 os.rename(f"{directory}/{cut}", f"{directory}/{wavetype}")
                 os.rename(f"{directory}/{wavetype}", f"{directory}/{iterate}_{wavetype}")
-                print(f"Renamed {cut} to {iterate}_{wavetype}")
+                #print(f"Renamed {cut} to {iterate}_{wavetype}")
                 trimmed = AudioSegment.from_file(f"{directory}/{iterate}_{wavetype}")
                 trimmed_removed = trimmed[1500:]
                 trimmed_removed.export(out_f=f"{directory}/cut_{iterate}_{wavetype}",
