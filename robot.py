@@ -42,30 +42,6 @@ nato_tune = True
 truncated = True
 # This is an empty string to convert list items to strings later on in the program
 
-'''
-def get_json():
-    with open("correct_answers.json") as CA:
-        answer_text = json.load(CA)
- #       print(answer_text)
-        for filenames, answers in answer_text.items():
-            position = filenames.find("impaired_")
-            matchable = filenames[position:len(filenames)]
-#            print(matchable, answers)
-            # leaving comments for readability
-            x_whitespace = matchable
-            v_whitespace = answers
-            # another
-            x_whitespace = re.sub('"', '', x_whitespace)
-            v_whitespace = re.sub('"', '', v_whitespace)
-            v_whitespace = re.sub(': ', '', v_whitespace)
-            v_whitespace = re.sub(',', '', v_whitespace)
-            # another
-            answer_dict[matchable] = v_whitespace
-            # another
-            listkeys.append(x_whitespace)
-            # another
-'''
-
 def check_name(enter):
     if 'current' in enter:
         return enter
